@@ -28,8 +28,14 @@
     "class-variance-authority": "^0.7.0",
     "lucide-react": "^0.454.0",
     "@radix-ui/react-slot": "^1.1.0",
+    "@radix-ui/react-dialog": "^1.1.2",
+    "@radix-ui/react-select": "^2.1.2",
+    "@radix-ui/react-label": "^2.1.0",
     "@supabase/ssr": "^0.5.2",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "react-big-calendar": "^1.15.0",
+    "react-dnd": "^16.0.1",
+    "react-dnd-html5-backend": "^16.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",
