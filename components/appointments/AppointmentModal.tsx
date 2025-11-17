@@ -9,6 +9,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useServices, useCustomers, Appointment } from '@/lib/hooks/useAppointments'
 import { format } from 'date-fns'
+import { appointmentSchema } from '@/lib/validations/appointments'
+import { toast } from 'sonner'
+import { z } from 'zod'
 
 interface AppointmentModalProps {
   open: boolean
@@ -22,6 +25,7 @@ export function AppointmentModal({ open, onClose, onSave, appointment, initialDa
   const { services } = useServices()
   const { customers } = useCustomers()
   const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   const [formData, setFormData] = useState({
     serviceId: appointment?.serviceId || '',
@@ -29,7 +33,7 @@ export function AppointmentModal({ open, onClose, onSave, appointment, initialDa
     customerId: appointment?.customerId || '',
     startTime: appointment?.startTime || initialDate || new Date(),
     endTime: appointment?.endTime || new Date(),
-    status: appointment?.status || 'pending',
+    status: appointment?.status || 'pending' as 'pending' | 'confirmed' | 'cancelled' | 'completed',
     notes: appointment?.notes || '',
   })
 
@@ -55,12 +59,34 @@ export function AppointmentModal({ open, onClose, onSave, appointment, initialDa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setErrors({})
+
+    // Validate form data
+    try {
+      appointmentSchema.parse(formData)
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const fieldErrors: Record<string, string> = {}
+        error.errors.forEach((err) => {
+          if (err.path[0]) {
+            fieldErrors[err.path[0] as string] = err.message
+          }
+        })
+        setErrors(fieldErrors)
+        toast.error('Error de validación', {
+          description: 'Por favor revisa los campos del formulario',
+        })
+        return
+      }
+    }
+
     setLoading(true)
     try {
       await onSave(formData)
       onClose()
     } catch (error) {
       console.error('Error saving appointment:', error)
+      // Error toast is already shown in the hook
     } finally {
       setLoading(false)
     }
@@ -82,7 +108,7 @@ export function AppointmentModal({ open, onClose, onSave, appointment, initialDa
               onValueChange={(value) => setFormData({ ...formData, serviceId: value })}
               required
             >
-              <SelectTrigger>
+              <SelectTrigger className={errors.serviceId ? 'border-red-500' : ''}>
                 <SelectValue placeholder="Seleccionar servicio" />
               </SelectTrigger>
               <SelectContent>
@@ -93,6 +119,7 @@ export function AppointmentModal({ open, onClose, onSave, appointment, initialDa
                 ))}
               </SelectContent>
             </Select>
+            {errors.serviceId && <p className="text-sm text-red-600">{errors.serviceId}</p>}
           </div>
 
           <div className="space-y-2">
@@ -102,7 +129,7 @@ export function AppointmentModal({ open, onClose, onSave, appointment, initialDa
               onValueChange={(value) => setFormData({ ...formData, staffId: value })}
               required
             >
-              <SelectTrigger>
+              <SelectTrigger className={errors.staffId ? 'border-red-500' : ''}>
                 <SelectValue placeholder="Seleccionar staff" />
               </SelectTrigger>
               <SelectContent>
@@ -113,6 +140,7 @@ export function AppointmentModal({ open, onClose, onSave, appointment, initialDa
                 ))}
               </SelectContent>
             </Select>
+            {errors.staffId && <p className="text-sm text-red-600">{errors.staffId}</p>}
           </div>
 
           <div className="space-y-2">
@@ -122,7 +150,7 @@ export function AppointmentModal({ open, onClose, onSave, appointment, initialDa
               onValueChange={(value) => setFormData({ ...formData, customerId: value })}
               required
             >
-              <SelectTrigger>
+              <SelectTrigger className={errors.customerId ? 'border-red-500' : ''}>
                 <SelectValue placeholder="Seleccionar cliente" />
               </SelectTrigger>
               <SelectContent>
@@ -133,6 +161,7 @@ export function AppointmentModal({ open, onClose, onSave, appointment, initialDa
                 ))}
               </SelectContent>
             </Select>
+            {errors.customerId && <p className="text-sm text-red-600">{errors.customerId}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -145,8 +174,10 @@ export function AppointmentModal({ open, onClose, onSave, appointment, initialDa
                 onChange={(e) =>
                   setFormData({ ...formData, startTime: new Date(e.target.value) })
                 }
+                className={errors.startTime ? 'border-red-500' : ''}
                 required
               />
+              {errors.startTime && <p className="text-sm text-red-600">{errors.startTime}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="endTime">Hora fin *</Label>
@@ -157,8 +188,10 @@ export function AppointmentModal({ open, onClose, onSave, appointment, initialDa
                 onChange={(e) =>
                   setFormData({ ...formData, endTime: new Date(e.target.value) })
                 }
+                className={errors.endTime ? 'border-red-500' : ''}
                 required
               />
+              {errors.endTime && <p className="text-sm text-red-600">{errors.endTime}</p>}
             </div>
           </div>
 

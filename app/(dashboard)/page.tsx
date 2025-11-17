@@ -1,57 +1,56 @@
 'use client'
 
-import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Plus, Calendar as CalendarIcon, Users, Clock } from 'lucide-react'
+import { Plus, Calendar as CalendarIcon, Users, Clock, Loader2 } from 'lucide-react'
 import Link from 'next/link'
+import { useDashboardStats } from '@/lib/hooks/useDashboardStats'
+import { format } from 'date-fns'
+import { es } from 'date-fns/locale'
 
 export default function DashboardPage() {
-  const stats = [
+  const { stats, upcomingAppointments, loading, error } = useDashboardStats()
+
+  const statsConfig = [
     {
       name: 'Citas Hoy',
-      value: '8',
+      value: stats.todayAppointments,
       icon: CalendarIcon,
       color: 'bg-blue-500',
     },
     {
       name: 'Próximas Citas',
-      value: '24',
+      value: stats.upcomingAppointments,
       icon: Clock,
       color: 'bg-green-500',
     },
     {
       name: 'Total Clientes',
-      value: '142',
+      value: stats.totalCustomers,
       icon: Users,
       color: 'bg-purple-500',
     },
   ]
 
-  const upcomingAppointments = [
-    {
-      id: 1,
-      customer: 'María González',
-      service: 'Consulta General',
-      time: '10:00 AM',
-      status: 'confirmed',
-    },
-    {
-      id: 2,
-      customer: 'Carlos Pérez',
-      service: 'Seguimiento',
-      time: '11:30 AM',
-      status: 'pending',
-    },
-    {
-      id: 3,
-      customer: 'Ana Martínez',
-      service: 'Primera Consulta',
-      time: '2:00 PM',
-      status: 'confirmed',
-    },
-  ]
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <p className="text-red-600 mb-2">Error al cargar estadísticas</p>
+          <p className="text-sm text-gray-600">{error}</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8">
@@ -71,7 +70,7 @@ export default function DashboardPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {stats.map((stat, index) => (
+        {statsConfig.map((stat, index) => (
           <motion.div
             key={stat.name}
             initial={{ opacity: 0, y: 20 }}
@@ -102,44 +101,65 @@ export default function DashboardPage() {
           <CardDescription>Citas agendadas para hoy</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {upcomingAppointments.map((appointment, index) => (
-              <motion.div
-                key={appointment.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="bg-blue-100 p-2 rounded-full">
-                    <CalendarIcon className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium">{appointment.customer}</p>
-                    <p className="text-sm text-gray-600">{appointment.service}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-sm font-medium">{appointment.time}</span>
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      appointment.status === 'confirmed'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-yellow-100 text-yellow-700'
-                    }`}
+          {upcomingAppointments.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <CalendarIcon className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+              <p>No hay citas agendadas para hoy</p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-4">
+                {upcomingAppointments.map((appointment, index) => (
+                  <motion.div
+                    key={appointment.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                   >
-                    {appointment.status === 'confirmed' ? 'Confirmada' : 'Pendiente'}
-                  </span>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-          <div className="mt-6 text-center">
-            <Link href="/appointments">
-              <Button variant="outline">Ver Todas las Citas</Button>
-            </Link>
-          </div>
+                    <div className="flex items-center gap-4">
+                      <div className="bg-blue-100 p-2 rounded-full">
+                        <CalendarIcon className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{appointment.customer?.name || 'Sin nombre'}</p>
+                        <p className="text-sm text-gray-600">{appointment.service?.name || 'Sin servicio'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm font-medium">
+                        {format(appointment.startTime, 'HH:mm', { locale: es })}
+                      </span>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          appointment.status === 'confirmed'
+                            ? 'bg-green-100 text-green-700'
+                            : appointment.status === 'pending'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : appointment.status === 'cancelled'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        {appointment.status === 'confirmed'
+                          ? 'Confirmada'
+                          : appointment.status === 'pending'
+                          ? 'Pendiente'
+                          : appointment.status === 'cancelled'
+                          ? 'Cancelada'
+                          : 'Completada'}
+                      </span>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+              <div className="mt-6 text-center">
+                <Link href="/appointments">
+                  <Button variant="outline">Ver Todas las Citas</Button>
+                </Link>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

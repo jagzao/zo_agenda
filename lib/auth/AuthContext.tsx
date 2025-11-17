@@ -48,6 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signUp = async (email: string, password: string, name: string) => {
+    // Step 1: Create auth user
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -58,9 +59,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     })
     if (error) throw error
-    if (data.user) {
-      router.push('/dashboard')
+    if (!data.user) throw new Error('No se pudo crear el usuario')
+
+    // Step 2: Create tenant for this user
+    const tenantSlug = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-')
+    const { data: tenantData, error: tenantError } = await supabase
+      .from('tenants')
+      .insert({
+        name: `${name}'s Clinic`,
+        slug: `${tenantSlug}-${Date.now()}`,
+        settings: {},
+      })
+      .select()
+      .single()
+
+    if (tenantError) {
+      console.error('Error creating tenant:', tenantError)
+      throw new Error('Error al crear el espacio de trabajo')
     }
+
+    // Step 3: Create user record in users table
+    const { error: userError } = await supabase.from('users').insert({
+      id: data.user.id,
+      tenant_id: tenantData.id,
+      email: email,
+      name: name,
+      role: 'admin', // First user is admin
+    })
+
+    if (userError) {
+      console.error('Error creating user record:', userError)
+      throw new Error('Error al crear el perfil de usuario')
+    }
+
+    router.push('/dashboard')
   }
 
   const signOut = async () => {
